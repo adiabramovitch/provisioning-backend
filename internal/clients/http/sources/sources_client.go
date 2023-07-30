@@ -7,6 +7,7 @@ import (
 	"fmt"
 	stdhttp "net/http"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"github.com/RHEnVision/provisioning-backend/internal/cache"
@@ -14,6 +15,7 @@ import (
 	"github.com/RHEnVision/provisioning-backend/internal/clients/http"
 	"github.com/RHEnVision/provisioning-backend/internal/config"
 	"github.com/RHEnVision/provisioning-backend/internal/headers"
+	"github.com/RHEnVision/provisioning-backend/internal/middleware"
 	"github.com/RHEnVision/provisioning-backend/internal/models"
 	"github.com/RHEnVision/provisioning-backend/internal/ptr"
 	"github.com/RHEnVision/provisioning-backend/internal/telemetry"
@@ -83,6 +85,7 @@ func (c *sourcesClient) Ready(ctx context.Context) error {
 
 func (c *sourcesClient) ListProvisioningSourcesByProvider(ctx context.Context, provider models.ProviderType) ([]*clients.Source, error) {
 	logger := logger(ctx)
+	params := &ListApplicationTypeSourcesParams{}
 	ctx, span := otel.Tracer(TraceName).Start(ctx, "ListProvisioningSourcesByProvider")
 	defer span.End()
 
@@ -98,8 +101,13 @@ func (c *sourcesClient) ListProvisioningSourcesByProvider(ctx context.Context, p
 		return nil, fmt.Errorf("failed to get provider name according to sources service: %w", err)
 	}
 
-	resp, err := c.client.ListApplicationTypeSourcesWithResponse(ctx, appTypeId, &ListApplicationTypeSourcesParams{}, headers.AddSourcesIdentityHeader,
-		headers.AddEdgeRequestIdHeader, BuildQuery("filter[source_type][name]", sourcesProviderName))
+	offset := ctx.Value(middleware.OffsetCtxKey).(int)
+	limit := ctx.Value(middleware.LimitCtxKey).(int)
+	limitStr := strconv.Itoa(limit)
+	offsetStr := strconv.Itoa(offset)
+
+	resp, err := c.client.ListApplicationTypeSourcesWithResponse(ctx, appTypeId, params, headers.AddSourcesIdentityHeader,
+		headers.AddEdgeRequestIdHeader, BuildQuery("filter[source_type][name]", sourcesProviderName, "offset", offsetStr, "limit", limitStr))
 	if err != nil {
 		logger.Warn().Err(err).Msg("Failed to fetch ApplicationTypes from sources")
 		return nil, fmt.Errorf("failed to get ApplicationTypes: %w", err)
@@ -130,6 +138,7 @@ func (c *sourcesClient) ListProvisioningSourcesByProvider(ctx context.Context, p
 
 func (c *sourcesClient) ListAllProvisioningSources(ctx context.Context) ([]*clients.Source, error) {
 	logger := logger(ctx)
+	params := &ListApplicationTypeSourcesParams{}
 	ctx, span := otel.Tracer(TraceName).Start(ctx, "ListAllProvisioningSources")
 	defer span.End()
 
@@ -139,7 +148,12 @@ func (c *sourcesClient) ListAllProvisioningSources(ctx context.Context) ([]*clie
 		return nil, fmt.Errorf("failed to get provisioning app type: %w", err)
 	}
 
-	resp, err := c.client.ListApplicationTypeSourcesWithResponse(ctx, appTypeId, &ListApplicationTypeSourcesParams{}, headers.AddSourcesIdentityHeader, headers.AddEdgeRequestIdHeader)
+	offset := ctx.Value(middleware.OffsetCtxKey).(int)
+	limit := ctx.Value(middleware.LimitCtxKey).(int)
+	params.Offset = ptr.To(offset)
+	params.Limit = ptr.To(limit)
+
+	resp, err := c.client.ListApplicationTypeSourcesWithResponse(ctx, appTypeId, params, headers.AddSourcesIdentityHeader, headers.AddEdgeRequestIdHeader)
 	if err != nil {
 		logger.Warn().Err(err).Msg("Failed to fetch ApplicationTypes from sources")
 		return nil, fmt.Errorf("failed to get ApplicationTypes: %w", err)

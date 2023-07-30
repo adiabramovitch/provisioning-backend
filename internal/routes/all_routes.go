@@ -60,7 +60,7 @@ func MountAPI(r *chi.Mux) {
 
 		// OpenAPI documented and supported routes
 		r.Route("/sources", func(r chi.Router) {
-			r.Get("/", s.ListSources)
+			r.With(middleware.Pagination).Get("/", s.ListSources)
 			r.Route("/{ID}", func(r chi.Router) {
 				r.Get("/status", s.SourcesStatus)
 
@@ -78,7 +78,7 @@ func MountAPI(r *chi.Mux) {
 
 		r.Route("/pubkeys", func(r chi.Router) {
 			r.Post("/", s.CreatePubkey)
-			r.Get("/", s.ListPubkeys)
+			r.With(middleware.Pagination).Get("/", s.ListPubkeys)
 			r.Route("/{ID}", func(r chi.Router) {
 				r.Get("/", s.GetPubkey)
 				r.Delete("/", s.DeletePubkey)

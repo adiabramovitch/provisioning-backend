@@ -9,6 +9,7 @@ import (
 	httpClients "github.com/RHEnVision/provisioning-backend/internal/clients/http"
 	"github.com/RHEnVision/provisioning-backend/internal/dao"
 	"github.com/RHEnVision/provisioning-backend/internal/db"
+	"github.com/RHEnVision/provisioning-backend/internal/middleware"
 	"github.com/RHEnVision/provisioning-backend/internal/models"
 	"github.com/RHEnVision/provisioning-backend/internal/payloads"
 	"github.com/go-chi/render"
@@ -49,7 +50,10 @@ func CreatePubkey(w http.ResponseWriter, r *http.Request) {
 func ListPubkeys(w http.ResponseWriter, r *http.Request) {
 	pubkeyDao := dao.GetPubkeyDao(r.Context())
 
-	pubkeys, err := pubkeyDao.List(r.Context(), 100, 0)
+	offset := r.Context().Value(middleware.OffsetCtxKey).(int)
+	limit := r.Context().Value(middleware.LimitCtxKey).(int)
+
+	pubkeys, err := pubkeyDao.List(r.Context(), int64(limit), int64(offset))
 	if err != nil {
 		renderError(w, r, payloads.NewDAOError(r.Context(), "list pubkeys", err))
 		return

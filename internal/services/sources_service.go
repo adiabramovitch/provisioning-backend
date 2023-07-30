@@ -16,12 +16,12 @@ import (
 
 func ListSources(w http.ResponseWriter, r *http.Request) {
 	var sourcesList []*clients.Source
-
 	client, err := clients.GetSourcesClient(r.Context())
 	if err != nil {
 		renderError(w, r, payloads.NewClientError(r.Context(), err))
 		return
 	}
+
 	provider := r.URL.Query().Get("provider")
 	asProviderType := models.ProviderTypeFromString(provider)
 	if asProviderType != models.ProviderTypeUnknown {
