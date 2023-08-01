@@ -1,9 +1,8 @@
 package pagination
 
 type Pagination struct {
-	Offset int    `json:"offset"`
-	Limit  int    `json:"limit"`
-	Token  string `json:"token"`
+	Offset int `json:"offset"`
+	Limit  int `json:"limit"`
 }
 
 // NewPagination creates a new Pagination with default values of 0 for offset and 100 for limit,

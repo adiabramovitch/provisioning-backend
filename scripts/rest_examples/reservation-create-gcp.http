@@ -6,10 +6,10 @@ X-Rh-Identity: {{identity}}
 {
   "name_pattern": "gcp-linux-eu-west8-c",
   "zone": "europe-west8-c",
-  "source_id": "3",
+  "source_id": "8",
   "image_id": "https://www.googleapis.com/compute/v1/projects/rhel-cloud/global/images/rhel-9-v20230411",
   "amount": 1,
-  "machine_type": "e2-micro",
+  "machine_type": "e2-medium",
   "launch_template_name": "{{launch_template_name}}",
   "pubkey_id": {{pubkey_id}},
   "poweroff": true

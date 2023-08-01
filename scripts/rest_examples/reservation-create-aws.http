@@ -5,11 +5,11 @@ X-Rh-Identity: {{identity}}
 
 {
   "name": "amz-linux-us-east-1",
-  "source_id": "1",
+  "source_id": "6",
   "image_id": "ami-05fa00d4c63e32376",
   "amount": 1,
   "launch_template_id": "{{launch_template_id}}",
   "instance_type": "t2.nano",
-  "pubkey_id": {{pubkey_id}},
+  "pubkey_id": 3,
   "poweroff": true
 }

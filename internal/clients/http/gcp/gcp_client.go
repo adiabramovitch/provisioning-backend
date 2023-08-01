@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/RHEnVision/provisioning-backend/internal/logging"
+	"github.com/RHEnVision/provisioning-backend/internal/middleware"
 	"github.com/RHEnVision/provisioning-backend/internal/models"
 	"github.com/RHEnVision/provisioning-backend/internal/telemetry"
 
@@ -100,44 +101,45 @@ func (c *gcpClient) NewInstanceTemplatesClient(ctx context.Context) (*compute.In
 	return client, nil
 }
 
-func (c *gcpClient) ListLaunchTemplates(ctx context.Context) ([]*clients.LaunchTemplate, error) {
+func (c *gcpClient) ListLaunchTemplates(ctx context.Context) ([]*clients.LaunchTemplate, *string, error) {
 	ctx, span := otel.Tracer(TraceName).Start(ctx, "ListLaunchTemplates")
 	defer span.End()
-
+	var token string
 	logger := logger(ctx)
 	logger.Trace().Msgf("Listing launch templates")
 
 	templatesClient, err := c.NewInstanceTemplatesClient(ctx)
 	if err != nil {
 		logger.Error().Err(err).Msg("Could not get instances client")
-		return nil, fmt.Errorf("unable to get instances client: %w", err)
+		return nil, nil, fmt.Errorf("unable to get instances client: %w", err)
 	}
 	defer templatesClient.Close()
 
-	req := &computepb.AggregatedListInstanceTemplatesRequest{
-		Project: c.auth.Payload,
+	limit := ctx.Value(middleware.LimitCtxKey).(int)
+	req := &computepb.ListInstanceTemplatesRequest{
+		Project:    c.auth.Payload,
+		MaxResults: ptr.To(uint32(limit)),
+	}
+
+	if token := ctx.Value(middleware.TokenCtxKey).(string); token != "" {
+		req.PageToken = &token
+	}
+
+	var lst []*computepb.InstanceTemplate
+	it := templatesClient.List(ctx, req)
+	pager := iterator.NewPager(it, it.PageInfo().MaxSize, token)
+	nextToken, err := pager.NextPage(&lst)
+	if err != nil {
+		return nil, nil, fmt.Errorf("unable to get next page: %w", err)
 	}
 
 	var templatesList []*clients.LaunchTemplate
-	templates := templatesClient.AggregatedList(ctx, req)
-	for {
-		pair, err := templates.Next()
-		if errors.Is(err, iterator.Done) {
-			break
-		} else if err != nil {
-			logger.Error().Err(err).Msg("An error occurred during listing launch templates")
-			span.SetStatus(codes.Error, err.Error())
-			return nil, fmt.Errorf("cannot list launch templates: %w", err)
-		} else {
-			instancesTemplates := pair.Value.InstanceTemplates
-			for _, template := range instancesTemplates {
-				id := strconv.FormatUint(*template.Id, 10)
-				templatesList = append(templatesList, &clients.LaunchTemplate{ID: id, Name: template.GetName()})
-			}
-		}
+	for _, template := range lst {
+		id := strconv.FormatUint(*template.Id, 10)
+		templatesList = append(templatesList, &clients.LaunchTemplate{ID: id, Name: template.GetName()})
 	}
 
-	return templatesList, nil
+	return templatesList, &nextToken, nil
 }
 
 func (c *gcpClient) InsertInstances(ctx context.Context, params *clients.GCPInstanceParams, amount int64) ([]*string, *string, error) {
